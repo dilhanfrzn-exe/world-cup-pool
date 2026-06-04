@@ -11,12 +11,13 @@ export const metadata = { title: "Log in · World Cup Pool" };
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: { next?: string };
+  searchParams: { next?: string; error?: string };
 }) {
   const next =
     searchParams.next && searchParams.next.startsWith("/")
       ? searchParams.next
       : "/";
+  const error = searchParams.error;
 
   if (isAuthConfigured()) {
     const user = await getCurrentUser();
@@ -36,6 +37,12 @@ export default async function LoginPage({
           You need an account to create pools, join, and trade teams.
         </p>
       </div>
+
+      {error && (
+        <p className="rounded-lg bg-red-50 px-3 py-2 text-sm font-medium text-red-700">
+          {error}
+        </p>
+      )}
 
       {!isAuthConfigured() ? (
         <SupabaseNotice />
