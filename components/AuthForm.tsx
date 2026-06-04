@@ -5,6 +5,7 @@ import { useFormState } from "react-dom";
 import { SubmitButton } from "./SubmitButton";
 import { signInAction, signUpAction } from "@/lib/auth-actions";
 import { inputClass, labelClass } from "./forms";
+import { GoogleSignInButton } from "./GoogleSignInButton";
 import type { ActionState } from "@/lib/types";
 
 const initial: ActionState = {};
@@ -36,6 +37,16 @@ export function AuthForm({ next }: { next?: string }) {
 
   return (
     <div className="space-y-4">
+      <GoogleSignInButton next={next} />
+
+      <div className="flex items-center gap-3">
+        <span className="h-px flex-1 bg-slate-200" />
+        <span className="text-xs font-medium uppercase tracking-wide text-slate-400">
+          or
+        </span>
+        <span className="h-px flex-1 bg-slate-200" />
+      </div>
+
       <div className="flex gap-1 rounded-xl bg-slate-100 p-1 text-sm font-semibold">
         <button
           type="button"
