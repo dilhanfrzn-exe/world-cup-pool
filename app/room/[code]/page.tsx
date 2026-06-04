@@ -9,6 +9,7 @@ import {
   AddPlayerForm,
   AddTeamForm,
   SeedTeamsForm,
+  ResetTeamsForm,
   RunDrawForm,
   JoinForm,
 } from "@/components/forms";
@@ -218,6 +219,14 @@ export default async function RoomPage({
               <SeedTeamsForm poolId={pool.id} code={code} />
             )}
             <AddTeamForm poolId={pool.id} code={code} />
+            {teams.length > 0 && (
+              <div className="border-t border-slate-100 pt-4">
+                <p className="mb-2 text-xs text-slate-400">
+                  Refresh this pool with the official 2026 World Cup field.
+                </p>
+                <ResetTeamsForm poolId={pool.id} code={code} />
+              </div>
+            )}
           </div>
         )}
       </Card>

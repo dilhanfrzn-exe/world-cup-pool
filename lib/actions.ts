@@ -234,7 +234,7 @@ export async function seedTeamsAction(
     name: t.name,
     country_code: t.code,
     tier: t.tier,
-    flag: flagEmoji(t.code),
+    flag: t.flag ?? flagEmoji(t.code),
   }));
   // Ignore duplicates so re-seeding is safe.
   const { error } = await supabase
@@ -243,6 +243,46 @@ export async function seedTeamsAction(
   if (error) return fail(error.message);
   revalidateRoom(code);
   return ok("Loaded the 48 World Cup teams.");
+}
+
+/**
+ * Reset a pool's teams to the official 48. Deleting teams cascades to
+ * team_assignments and team_results, so any existing draw/results are wiped and
+ * the pool returns to "open". Useful for refreshing pools seeded with the old
+ * placeholder list.
+ */
+export async function resetTeamsAction(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const poolId = str(formData, "pool_id");
+  const code = str(formData, "room_code");
+  try {
+    await assertHost(poolId);
+  } catch (e) {
+    return fail((e as Error).message);
+  }
+
+  const supabase = getServerSupabase();
+  const { error: delError } = await supabase
+    .from("teams")
+    .delete()
+    .eq("pool_id", poolId);
+  if (delError) return fail(delError.message);
+
+  const rows = WORLD_CUP_TEAMS.map((t) => ({
+    pool_id: poolId,
+    name: t.name,
+    country_code: t.code,
+    tier: t.tier,
+    flag: t.flag ?? flagEmoji(t.code),
+  }));
+  const { error } = await supabase.from("teams").insert(rows);
+  if (error) return fail(error.message);
+
+  await supabase.from("pools").update({ status: "open" }).eq("id", poolId);
+  revalidateRoom(code);
+  return ok("Teams reset to the official 48. Any previous draw was cleared — run the draw again.");
 }
 
 export async function addTeamAction(

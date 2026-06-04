@@ -9,6 +9,7 @@ import {
   joinPoolAction,
   runDrawAction,
   seedTeamsAction,
+  resetTeamsAction,
   updateResultAction,
 } from "@/lib/actions";
 import { KNOCKOUT_STAGES } from "@/lib/scoring";
@@ -112,11 +113,11 @@ export function JoinForm({ roomCode }: { roomCode: string }) {
       <input type="hidden" name="room_code" value={roomCode} />
       <div>
         <label className={labelClass}>Your name</label>
-        <input name="name" required placeholder="Dilhan" className={inputClass} />
+        <input name="name" required placeholder="Name" className={inputClass} />
       </div>
       <div>
         <label className={labelClass}>Nickname (optional)</label>
-        <input name="nickname" placeholder="The Gaffer" className={inputClass} />
+        <input name="nickname" placeholder="Nickname" className={inputClass} />
       </div>
       <FormMessage state={state} />
       <SubmitButton pendingText="Joining…" className="w-full">
@@ -191,6 +192,33 @@ export function SeedTeamsForm(props: { poolId: string; code: string }) {
       <FormMessage state={state} />
       <SubmitButton variant="secondary" pendingText="Loading teams…">
         Load 48 World Cup teams
+      </SubmitButton>
+    </form>
+  );
+}
+
+export function ResetTeamsForm(props: { poolId: string; code: string }) {
+  const [state, action] = useFormState(resetTeamsAction, initial);
+  return (
+    <form
+      action={action}
+      onSubmit={(e) => {
+        if (
+          !window.confirm(
+            "Reset this pool to the official 48 World Cup teams?\n\n" +
+              "This replaces the current team list and clears any existing draw " +
+              "and results for this pool. This can’t be undone.",
+          )
+        ) {
+          e.preventDefault();
+        }
+      }}
+      className="space-y-2"
+    >
+      <AdminHidden {...props} />
+      <FormMessage state={state} />
+      <SubmitButton variant="danger" pendingText="Resetting teams…">
+        Reset to official 48 teams
       </SubmitButton>
     </form>
   );
