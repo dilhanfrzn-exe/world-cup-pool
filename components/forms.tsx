@@ -11,6 +11,8 @@ import {
   seedTeamsAction,
   resetTeamsAction,
   updateResultAction,
+  syncResultsAction,
+  refreshMatchupsAction,
 } from "@/lib/actions";
 import { KNOCKOUT_STAGES } from "@/lib/scoring";
 import type { ActionState, KnockoutStage, Team, TeamResult } from "@/lib/types";
@@ -305,6 +307,17 @@ export function UpdateResultForm({
           ))}
         </select>
       </label>
+      <label className="flex items-start gap-2 text-xs font-medium text-slate-600">
+        <input
+          type="checkbox"
+          name="manual_override_enabled"
+          defaultChecked={result?.manual_override_enabled ?? false}
+          className="mt-0.5 h-4 w-4 rounded border-slate-300 text-pitch-600 focus:ring-pitch-200"
+        />
+        <span>
+          Lock this team (the API sync won&apos;t overwrite these values)
+        </span>
+      </label>
       <div className="flex items-center justify-between gap-2">
         <div className="min-w-0 flex-1">
           <FormMessage state={state} />
@@ -313,6 +326,34 @@ export function UpdateResultForm({
           Save
         </SubmitButton>
       </div>
+    </form>
+  );
+}
+
+// ---------------------------------------------------------------------------
+export function SyncResultsForm(props: { poolId: string; code: string }) {
+  const [state, action] = useFormState(syncResultsAction, initial);
+  return (
+    <form action={action} className="space-y-3">
+      <AdminHidden {...props} />
+      <FormMessage state={state} />
+      <SubmitButton pendingText="Syncing results…">
+        Sync World Cup results
+      </SubmitButton>
+    </form>
+  );
+}
+
+// ---------------------------------------------------------------------------
+export function RefreshMatchupsForm(props: { poolId: string; code: string }) {
+  const [state, action] = useFormState(refreshMatchupsAction, initial);
+  return (
+    <form action={action} className="space-y-2">
+      <AdminHidden {...props} />
+      <FormMessage state={state} />
+      <SubmitButton variant="secondary" pendingText="Refreshing…">
+        Refresh matchups
+      </SubmitButton>
     </form>
   );
 }

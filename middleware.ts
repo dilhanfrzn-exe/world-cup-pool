@@ -14,6 +14,17 @@ export async function middleware(request: NextRequest) {
   const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
   if (!url || !anon) return response;
 
+  // Safety net: if an OAuth `code` lands anywhere other than the callback
+  // (e.g. Supabase fell back to the Site URL because the redirect URL wasn't
+  // allow-listed), forward it to /auth/callback so the session exchange still
+  // completes. The PKCE verifier cookie survives the extra hop.
+  const { pathname, searchParams } = request.nextUrl;
+  if (searchParams.has("code") && pathname !== "/auth/callback") {
+    const callbackUrl = request.nextUrl.clone();
+    callbackUrl.pathname = "/auth/callback";
+    return NextResponse.redirect(callbackUrl);
+  }
+
   const supabase = createServerClient(url, anon, {
     cookies: {
       getAll() {

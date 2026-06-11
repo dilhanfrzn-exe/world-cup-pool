@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "test": "node --import tsx --test \"lib/api-football/__tests__/*.test.ts\""
   },
   "dependencies": {
     "@supabase/ssr": "^0.5.2",
@@ -24,6 +25,7 @@
     "autoprefixer": "^10.4.19",
     "postcss": "^8.4.39",
     "tailwindcss": "^3.4.10",
+    "tsx": "^4.22.4",
     "typescript": "^5.5.3"
   }
 }

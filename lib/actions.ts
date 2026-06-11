@@ -9,6 +9,7 @@ import { generateRoomCode } from "./utils";
 import { DEFAULT_SCORING_RULES } from "./scoring";
 import { WORLD_CUP_TEAMS, flagEmoji } from "./teams";
 import { runDraw, DrawError, type DrawableTeam } from "./draw";
+import { syncWorldCupResults } from "./api-football/sync";
 import type {
   ActionState,
   DrawType,
@@ -38,7 +39,15 @@ function strList(formData: FormData, key: string): string[] {
 }
 
 function revalidateRoom(code: string) {
-  for (const sub of ["", "/results", "/standings", "/admin", "/trade"]) {
+  for (const sub of [
+    "",
+    "/results",
+    "/standings",
+    "/scoring",
+    "/matchups",
+    "/admin",
+    "/trade",
+  ]) {
     revalidatePath(`/room/${code.toUpperCase()}${sub}`);
   }
 }
@@ -417,6 +426,9 @@ export async function updateResultAction(
       group_draws: Math.max(0, num(formData, "group_draws")),
       group_losses: Math.max(0, num(formData, "group_losses")),
       knockout_stage: knockout || "none",
+      // A host edit is a manual result; toggling override pins it against syncs.
+      source: "manual",
+      manual_override_enabled: str(formData, "manual_override_enabled") === "on",
       updated_at: new Date().toISOString(),
     },
     { onConflict: "pool_id,team_id" },
@@ -426,6 +438,56 @@ export async function updateResultAction(
   await supabase.from("pools").update({ status: "active" }).eq("id", poolId);
   revalidateRoom(code);
   return ok("Result saved.");
+}
+
+// ---------------------------------------------------------------------------
+// Admin: sync World Cup results from API-Football
+// ---------------------------------------------------------------------------
+export async function syncResultsAction(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const poolId = str(formData, "pool_id");
+  const code = str(formData, "room_code");
+
+  try {
+    await assertHost(poolId);
+  } catch (e) {
+    return fail((e as Error).message);
+  }
+
+  const result = await syncWorldCupResults(poolId, "manual");
+  revalidateRoom(code);
+
+  if (result.status === "error") return fail(result.message);
+  return ok(result.message);
+}
+
+/**
+ * Host-only "Refresh Matchups" button on the Matchups page. Runs the same full
+ * sync as the admin button (fetch fixtures, upsert today's/all matchups, redo
+ * winner/loser, and recalculate standings for any match that just finished),
+ * then surfaces a matchup-focused message.
+ */
+export async function refreshMatchupsAction(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const poolId = str(formData, "pool_id");
+  const code = str(formData, "room_code");
+
+  try {
+    await assertHost(poolId);
+  } catch (e) {
+    return fail((e as Error).message);
+  }
+
+  const result = await syncWorldCupResults(poolId, "matchups");
+  revalidateRoom(code);
+
+  if (result.status === "error") return fail(result.message);
+  const synced = result.fixturesSynced ?? 0;
+  return ok(`Matchups refreshed — ${synced} fixtures up to date.`);
 }
 
 export async function setPaidAction(formData: FormData): Promise<void> {

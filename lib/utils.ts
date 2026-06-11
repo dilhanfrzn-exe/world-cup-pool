@@ -54,6 +54,17 @@ export function payoutStructureLabel(structure: PayoutStructure): string {
   return structure === "top_3" ? "Top 3 payout" : "Winner takes all";
 }
 
+/** Human-friendly absolute timestamp, e.g. "Jun 10, 2026, 10:25 PM". */
+export function formatDateTime(value: string | null | undefined): string {
+  if (!value) return "Never";
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return "Never";
+  return new Intl.DateTimeFormat("en-US", {
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(d);
+}
+
 export function getAppUrl(): string {
   return (
     process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "") ||

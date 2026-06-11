@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Card, SectionTitle, Badge, EmptyState, Stat } from "@/components/ui";
 import { RoomNav } from "@/components/RoomNav";
@@ -6,6 +7,7 @@ import { computeStandings } from "@/lib/standings";
 import {
   computePayouts,
   formatMoney,
+  formatDateTime,
   payoutStructureLabel,
 } from "@/lib/utils";
 import { isSupabaseConfigured } from "@/lib/supabase/server";
@@ -28,11 +30,14 @@ export default async function StandingsPage({
   const [room, user] = await Promise.all([getFullRoom(code), getCurrentUser()]);
   if (!room) notFound();
 
-  const { pool, players, assignments } = room;
+  const { pool, players, assignments, lastSync } = room;
   const isAdmin = isPoolAdmin(pool, user);
   const tradeCount = countIncomingTrades(room.trades, players, user?.id);
 
   const standings = computeStandings(room);
+  const lastUpdated = formatDateTime(
+    lastSync?.completed_at ?? lastSync?.started_at,
+  );
   const paidCount = players.filter((p) => p.paid).length;
   const { pot, lines } = computePayouts(
     pool.buy_in,
@@ -92,7 +97,22 @@ export default async function StandingsPage({
 
       {/* Leaderboard -------------------------------------------------- */}
       <Card>
-        <SectionTitle title="Leaderboard" subtitle="Updates as the host enters results." />
+        <SectionTitle
+          title="Leaderboard"
+          subtitle={
+            lastSync
+              ? `Last synced from API-Football: ${lastUpdated}`
+              : "Updates as results sync or the host enters them."
+          }
+          action={
+            <Link
+              href={`/room/${code}/scoring`}
+              className="shrink-0 text-sm font-semibold text-pitch-700 hover:underline"
+            >
+              How scoring works →
+            </Link>
+          }
+        />
         {standings.length === 0 ? (
           <EmptyState>No players yet.</EmptyState>
         ) : (
