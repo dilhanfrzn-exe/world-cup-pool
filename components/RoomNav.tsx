@@ -8,7 +8,14 @@ export function RoomNav({
   tradeCount = 0,
 }: {
   code: string;
-  active: "room" | "results" | "standings" | "admin" | "trade";
+  active:
+    | "room"
+    | "results"
+    | "standings"
+    | "scoring"
+    | "matchups"
+    | "admin"
+    | "trade";
   isAdmin?: boolean;
   showTrade?: boolean;
   tradeCount?: number;
@@ -17,6 +24,8 @@ export function RoomNav({
     { key: "room", label: "Room", href: `/room/${code}` },
     { key: "results", label: "Draw", href: `/room/${code}/results` },
     { key: "standings", label: "Standings", href: `/room/${code}/standings` },
+    { key: "matchups", label: "Matchups", href: `/room/${code}/matchups` },
+    { key: "scoring", label: "Scoring", href: `/room/${code}/scoring` },
   ];
   if (showTrade) {
     tabs.push({ key: "trade", label: "Trade", href: `/room/${code}/trade` });
@@ -26,12 +35,12 @@ export function RoomNav({
   }
 
   return (
-    <nav className="flex gap-1 rounded-xl bg-slate-100 p-1 text-sm font-semibold">
+    <nav className="flex flex-wrap gap-1 rounded-xl bg-slate-100 p-1 text-sm font-semibold">
       {tabs.map((t) => (
         <Link
           key={t.key}
           href={t.href}
-          className={`relative flex-1 rounded-lg px-3 py-2 text-center transition ${
+          className={`relative min-w-[4.5rem] flex-1 rounded-lg px-3 py-2 text-center transition ${
             active === t.key
               ? "bg-white text-pitch-700 shadow-sm"
               : "text-slate-500 hover:text-slate-800"

@@ -1,6 +1,8 @@
 import "server-only";
 import { getServerSupabase } from "./supabase/server";
 import type {
+  ApiSyncLog,
+  Fixture,
   Player,
   Pool,
   ScoringRule,
@@ -11,6 +13,7 @@ import type {
   TradeItem,
 } from "./types";
 import type { RoomData } from "./standings";
+import { buildMatchups, splitMatchups, type Matchup } from "./matchups";
 
 export interface PoolSummary extends Pool {
   player_count: number;
@@ -119,6 +122,8 @@ export interface FullRoom extends RoomData {
   pool: Pool;
   trades: Trade[];
   tradeItems: TradeItem[];
+  fixtures: Fixture[];
+  lastSync: ApiSyncLog | null;
 }
 
 /** Load everything needed to render a room/standings page in one shot. */
@@ -127,7 +132,7 @@ export async function getFullRoom(code: string): Promise<FullRoom | null> {
   const pool = await getPoolByCode(code);
   if (!pool) return null;
 
-  const [players, teams, assignments, results, rules, trades] =
+  const [players, teams, assignments, results, rules, trades, fixtures, lastSync] =
     await Promise.all([
       supabase
         .from("players")
@@ -148,11 +153,25 @@ export async function getFullRoom(code: string): Promise<FullRoom | null> {
         .select("*")
         .eq("pool_id", pool.id)
         .order("created_at", { ascending: false }),
+      supabase
+        .from("fixtures")
+        .select("*")
+        .eq("pool_id", pool.id)
+        .order("kickoff_at", { ascending: true }),
+      supabase
+        .from("api_sync_logs")
+        .select("*")
+        .eq("pool_id", pool.id)
+        .order("started_at", { ascending: false })
+        .limit(1)
+        .maybeSingle(),
     ]);
 
   for (const res of [players, teams, assignments, results, rules, trades]) {
     if (res.error) throw res.error;
   }
+  // `fixtures` / `api_sync_logs` come from migration 0003. Tolerate their
+  // absence so existing rooms keep working before that migration is applied.
 
   const tradeRows = (trades.data as Trade[]) ?? [];
   let tradeItems: TradeItem[] = [];
@@ -177,5 +196,55 @@ export async function getFullRoom(code: string): Promise<FullRoom | null> {
     rules: (rules.data as ScoringRule[]) ?? [],
     trades: tradeRows,
     tradeItems,
+    fixtures: (fixtures.data as Fixture[]) ?? [],
+    lastSync: (lastSync.data as ApiSyncLog) ?? null,
   };
+}
+
+export interface PoolMatchups {
+  /** Every stored fixture, enriched with local teams + owners, sorted by kickoff. */
+  all: Matchup[];
+  today: Matchup[];
+  previous: Matchup[];
+  upcoming: Matchup[];
+}
+
+/**
+ * Load a pool's matchups already enriched with the local team + owning player
+ * for each side, and bucketed into today / previous / upcoming relative to
+ * `ref` (defaults to now). Owners resolve via
+ * fixtures.*_team_api_id -> teams.api_football_team_id ->
+ * team_assignments.team_id -> players.id.
+ *
+ * The matchups page renders from `getFullRoom` (one round-trip that also feeds
+ * the nav), but this is the standalone, documented entry point for matchup data
+ * — handy for a future API route or scheduled job.
+ */
+export async function getPoolMatchups(
+  poolId: string,
+  ref: Date = new Date(),
+): Promise<PoolMatchups> {
+  const supabase = getServerSupabase();
+  const [fixturesRes, teamsRes, assignmentsRes, playersRes] = await Promise.all([
+    supabase
+      .from("fixtures")
+      .select("*")
+      .eq("pool_id", poolId)
+      .order("kickoff_at", { ascending: true }),
+    supabase.from("teams").select("*").eq("pool_id", poolId),
+    supabase.from("team_assignments").select("*").eq("pool_id", poolId),
+    supabase.from("players").select("*").eq("pool_id", poolId),
+  ]);
+  for (const res of [fixturesRes, teamsRes, assignmentsRes, playersRes]) {
+    if (res.error) throw res.error;
+  }
+
+  const all = buildMatchups({
+    fixtures: (fixturesRes.data as Fixture[]) ?? [],
+    teams: (teamsRes.data as Team[]) ?? [],
+    assignments: (assignmentsRes.data as TeamAssignment[]) ?? [],
+    players: (playersRes.data as Player[]) ?? [],
+  });
+  const split = splitMatchups(all, ref);
+  return { all, ...split };
 }

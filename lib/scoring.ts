@@ -43,13 +43,26 @@ export function rulesToMap(rules: ScoringRule[]): Record<string, number> {
 
 /** Points earned by a single team given a result row and scoring rules. */
 export function teamPoints(
-  result: Pick<
-    TeamResult,
-    "group_wins" | "group_draws" | "knockout_stage"
-  > | null | undefined,
+  result:
+    | Pick<
+        TeamResult,
+        | "group_wins"
+        | "group_draws"
+        | "knockout_stage"
+        | "manual_points_override"
+      >
+    | null
+    | undefined,
   rules: Record<string, number>,
 ): number {
   if (!result) return 0;
+  // A host-set fixed total wins over computed scoring (custom/corrected scores).
+  if (
+    result.manual_points_override !== undefined &&
+    result.manual_points_override !== null
+  ) {
+    return result.manual_points_override;
+  }
   const groupPoints =
     result.group_wins * (rules.group_win ?? 0) +
     result.group_draws * (rules.group_draw ?? 0);
