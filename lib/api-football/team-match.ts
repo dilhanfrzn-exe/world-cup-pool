@@ -32,7 +32,7 @@ const ALIASES: Record<string, string[]> = {
     "Congo Democratic Republic",
   ],
   "Bosnia and Herzegovina": ["Bosnia & Herzegovina", "Bosnia"],
-  "Cape Verde": ["Cabo Verde"],
+  "Cape Verde": ["Cabo Verde", "Cape Verde Islands", "Cabo Verde Islands"],
   "Curaçao": ["Curacao"],
 };
 
