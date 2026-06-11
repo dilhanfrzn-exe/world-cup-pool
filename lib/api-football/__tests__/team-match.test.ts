@@ -19,6 +19,7 @@ test("matchApiTeamName resolves exact and aliased names", () => {
     "South Korea",
     "Türkiye",
     "Ivory Coast",
+    "Cape Verde",
     "Brazil",
   ]);
 
@@ -26,6 +27,9 @@ test("matchApiTeamName resolves exact and aliased names", () => {
   assert.equal(matchApiTeamName("Korea Republic", lookup), "South Korea");
   assert.equal(matchApiTeamName("Turkey", lookup), "Türkiye");
   assert.equal(matchApiTeamName("Cote d'Ivoire", lookup), "Ivory Coast");
+  // API-Football calls this team "Cape Verde Islands".
+  assert.equal(matchApiTeamName("Cape Verde Islands", lookup), "Cape Verde");
+  assert.equal(matchApiTeamName("Cabo Verde", lookup), "Cape Verde");
   assert.equal(matchApiTeamName("Brazil", lookup), "Brazil");
 });
 
