@@ -161,36 +161,48 @@ export function determineFixtureResult(
 }
 
 // ---------------------------------------------------------------------------
-// Date windows (today / previous / upcoming)
+// Date windows (today / previous / upcoming) — pinned to Pacific time
 // ---------------------------------------------------------------------------
-export interface DateRange {
-  start: Date;
-  end: Date;
-}
-
 /**
- * Midnight-to-midnight window for the calendar day containing `ref` (server
- * local time). `start` is inclusive, `end` exclusive.
+ * All "today / previous / upcoming" bucketing is done in Pacific time because
+ * the whole pool is in PST. `America/Los_Angeles` is used (not a fixed UTC-8)
+ * so it automatically tracks PST/PDT daylight saving — important since the
+ * tournament runs in June/July (PDT). This makes the day buckets correct no
+ * matter where the server runs (e.g. UTC on Vercel).
  */
-export function getMatchDateRange(ref: Date = new Date()): DateRange {
-  const start = new Date(ref.getFullYear(), ref.getMonth(), ref.getDate());
-  const end = new Date(start);
-  end.setDate(end.getDate() + 1);
-  return { start, end };
+export const MATCH_TIME_ZONE = "America/Los_Angeles";
+
+const DAY_FORMATTER = new Intl.DateTimeFormat("en-CA", {
+  timeZone: MATCH_TIME_ZONE,
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+});
+
+/** Calendar day (YYYY-MM-DD) of an instant in the pool's timezone. */
+export function zonedDay(value: string | Date): string {
+  const d = typeof value === "string" ? new Date(value) : value;
+  if (Number.isNaN(d.getTime())) return "";
+  return DAY_FORMATTER.format(d);
 }
 
 export type MatchDay = "today" | "previous" | "upcoming";
 
-/** Which day-bucket a kickoff falls into relative to `range`. */
+/**
+ * Which day-bucket a kickoff falls into relative to `ref`, compared by Pacific
+ * calendar day. A late-night PT match that is already "tomorrow" in UTC still
+ * counts as today for our users.
+ */
 export function matchDay(
   kickoffAt: string | null,
-  range: DateRange,
+  ref: Date = new Date(),
 ): MatchDay {
   if (!kickoffAt) return "upcoming";
-  const t = new Date(kickoffAt).getTime();
-  if (Number.isNaN(t)) return "upcoming";
-  if (t < range.start.getTime()) return "previous";
-  if (t >= range.end.getTime()) return "upcoming";
+  const day = zonedDay(kickoffAt);
+  if (!day) return "upcoming";
+  const today = zonedDay(ref);
+  if (day < today) return "previous";
+  if (day > today) return "upcoming";
   return "today";
 }
 
@@ -337,10 +349,9 @@ export function splitMatchups(
   matchups: Matchup[],
   ref: Date = new Date(),
 ): SplitMatchups {
-  const range = getMatchDateRange(ref);
   const out: SplitMatchups = { today: [], previous: [], upcoming: [] };
   for (const m of matchups) {
-    out[matchDay(m.kickoffAt, range)].push(m);
+    out[matchDay(m.kickoffAt, ref)].push(m);
   }
   // Previous reads best newest-first.
   out.previous.reverse();

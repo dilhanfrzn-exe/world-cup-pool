@@ -4,12 +4,12 @@ import {
   buildMatchups,
   determineFixtureResult,
   filterMatchups,
-  getMatchDateRange,
   mapFixtureStatus,
   matchDay,
   poolImpact,
   splitMatchups,
   todaySections,
+  zonedDay,
 } from "../../matchups";
 import type {
   Fixture,
@@ -105,17 +105,27 @@ test("mapFixtureStatus: prefers statusLong for label", () => {
   assert.equal(mapFixtureStatus("NS").label, "Not started");
 });
 
-// --- date windows -----------------------------------------------------------
-test("getMatchDateRange + matchDay bucket relative to ref", () => {
-  const ref = new Date(2026, 5, 10, 14, 0, 0); // Jun 10 2026, 2pm local
-  const range = getMatchDateRange(ref);
-  const today = new Date(2026, 5, 10, 18, 0, 0).toISOString();
-  const yesterday = new Date(2026, 5, 9, 18, 0, 0).toISOString();
-  const tomorrow = new Date(2026, 5, 11, 9, 0, 0).toISOString();
-  assert.equal(matchDay(today, range), "today");
-  assert.equal(matchDay(yesterday, range), "previous");
-  assert.equal(matchDay(tomorrow, range), "upcoming");
-  assert.equal(matchDay(null, range), "upcoming");
+// --- date windows (Pacific time) -------------------------------------------
+test("zonedDay reports the Pacific calendar day of an instant", () => {
+  // 2026-06-11T04:00:00Z == 2026-06-10 21:00 PDT
+  assert.equal(zonedDay("2026-06-11T04:00:00Z"), "2026-06-10");
+  // 2026-06-11T06:59:00Z == 2026-06-10 23:59 PDT (still Jun 10 in PT)
+  assert.equal(zonedDay("2026-06-11T06:59:00Z"), "2026-06-10");
+  // 2026-06-11T07:00:00Z == 2026-06-11 00:00 PDT
+  assert.equal(zonedDay("2026-06-11T07:00:00Z"), "2026-06-11");
+});
+
+test("matchDay buckets by Pacific calendar day", () => {
+  // ref: 2026-06-10 12:00 PDT
+  const ref = new Date("2026-06-10T19:00:00Z");
+  // Same PT day, even though it's already Jun 11 in UTC:
+  assert.equal(matchDay("2026-06-11T02:00:00Z", ref), "today"); // 19:00 PDT Jun 10
+  assert.equal(matchDay("2026-06-10T16:00:00Z", ref), "today"); // 09:00 PDT Jun 10
+  // Previous PT day:
+  assert.equal(matchDay("2026-06-10T05:00:00Z", ref), "previous"); // 22:00 PDT Jun 9
+  // Upcoming PT day:
+  assert.equal(matchDay("2026-06-12T18:00:00Z", ref), "upcoming"); // Jun 12 PDT
+  assert.equal(matchDay(null, ref), "upcoming");
 });
 
 // --- buildMatchups + owners -------------------------------------------------
@@ -208,14 +218,19 @@ test("buildMatchups leaves owner null when team not assigned", () => {
   assert.equal(m.away.owner, null);
 });
 
-test("splitMatchups + todaySections group correctly", () => {
-  const ref = new Date(2026, 5, 10, 14, 0, 0);
+test("splitMatchups + todaySections group correctly (Pacific)", () => {
+  const ref = new Date("2026-06-10T19:00:00Z"); // 12:00 PDT, Jun 10
   const fixtures = [
-    fixture({ id: "live", status_short: "1H", is_finished: false, kickoff_at: new Date(2026, 5, 10, 13, 30).toISOString() }),
-    fixture({ id: "done", status_short: "FT", is_finished: true, kickoff_at: new Date(2026, 5, 10, 9, 0).toISOString() }),
-    fixture({ id: "soon", status_short: "NS", is_finished: false, kickoff_at: new Date(2026, 5, 10, 20, 0).toISOString() }),
-    fixture({ id: "past", status_short: "FT", is_finished: true, kickoff_at: new Date(2026, 5, 8, 12, 0).toISOString() }),
-    fixture({ id: "future", status_short: "NS", is_finished: false, kickoff_at: new Date(2026, 5, 12, 12, 0).toISOString() }),
+    // today (PT), live  — 11:30 PDT Jun 10
+    fixture({ id: "live", status_short: "1H", is_finished: false, kickoff_at: "2026-06-10T18:30:00Z" }),
+    // today (PT), completed — 09:00 PDT Jun 10
+    fixture({ id: "done", status_short: "FT", is_finished: true, kickoff_at: "2026-06-10T16:00:00Z" }),
+    // today (PT), upcoming — 19:00 PDT Jun 10 (already Jun 11 in UTC)
+    fixture({ id: "soon", status_short: "NS", is_finished: false, kickoff_at: "2026-06-11T02:00:00Z" }),
+    // previous (PT) — Jun 8 PDT
+    fixture({ id: "past", status_short: "FT", is_finished: true, kickoff_at: "2026-06-08T19:00:00Z" }),
+    // upcoming (PT) — Jun 12 PDT
+    fixture({ id: "future", status_short: "NS", is_finished: false, kickoff_at: "2026-06-12T19:00:00Z" }),
   ];
   const all = buildMatchups({ fixtures, teams, assignments, players });
   const split = splitMatchups(all, ref);
