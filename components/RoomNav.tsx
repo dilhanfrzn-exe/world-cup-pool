@@ -35,12 +35,12 @@ export function RoomNav({
   }
 
   return (
-    <nav className="flex flex-wrap gap-1 rounded-xl bg-slate-100 p-1 text-sm font-semibold">
+    <nav className="flex flex-wrap justify-center gap-1 rounded-xl bg-slate-100 p-1 text-sm font-semibold">
       {tabs.map((t) => (
         <Link
           key={t.key}
           href={t.href}
-          className={`relative min-w-[4.5rem] flex-1 rounded-lg px-3 py-2 text-center transition ${
+          className={`relative basis-[calc(25%-0.25rem)] rounded-lg px-2 py-2 text-center transition sm:min-w-[4.5rem] sm:flex-1 sm:basis-auto ${
             active === t.key
               ? "bg-white text-pitch-700 shadow-sm"
               : "text-slate-500 hover:text-slate-800"
