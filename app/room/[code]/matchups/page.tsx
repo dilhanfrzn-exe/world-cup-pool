@@ -14,6 +14,7 @@ import {
   poolImpact,
   splitMatchups,
   todaySections,
+  MATCH_TIME_ZONE,
   type MatchDay,
   type MatchStatusCategory,
   type Matchup,
@@ -39,24 +40,32 @@ const STATUS_TONE: Record<
 const VALID_TABS: MatchDay[] = ["today", "previous", "upcoming"];
 const VALID_ROUNDS: RoundFilter[] = ["all", "group", "knockout"];
 
+// All times shown in Pacific (the whole pool is PST/PDT), with a "PT" suffix.
 function formatTime(value: string | null): string {
   if (!value) return "Time TBD";
   const d = new Date(value);
   if (Number.isNaN(d.getTime())) return "Time TBD";
-  return new Intl.DateTimeFormat("en-US", { timeStyle: "short" }).format(d);
+  return `${new Intl.DateTimeFormat("en-US", {
+    timeStyle: "short",
+    timeZone: MATCH_TIME_ZONE,
+  }).format(d)} PT`;
 }
 
 function formatDate(value: string | null): string {
   if (!value) return "Date TBD";
   const d = new Date(value);
   if (Number.isNaN(d.getTime())) return "Date TBD";
-  return new Intl.DateTimeFormat("en-US", { dateStyle: "medium" }).format(d);
+  return new Intl.DateTimeFormat("en-US", {
+    dateStyle: "medium",
+    timeZone: MATCH_TIME_ZONE,
+  }).format(d);
 }
 
 const todayLabel = new Intl.DateTimeFormat("en-US", {
   weekday: "long",
   month: "long",
   day: "numeric",
+  timeZone: MATCH_TIME_ZONE,
 }).format(new Date());
 
 export default async function MatchupsPage({
