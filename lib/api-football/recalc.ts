@@ -55,7 +55,8 @@ export function matchOutcome(
 /**
  * Recompute every team's group-stage W/D/L from all FINISHED group fixtures.
  * Returns a map keyed by LOCAL team id; teams with no finished group games are
- * simply absent. Unmapped API teams (not in this pool) are skipped.
+ * simply absent. Opponents not in this pool are ignored, but pool teams still
+ * earn W/D/L from those matches (e.g. Germany vs a removed team).
  */
 export function recalcGroupRecords(
   fixtures: FixtureLike[],
@@ -76,20 +77,20 @@ export function recalcGroupRecords(
       fx.home_team_api_id != null ? apiIdToTeamId.get(fx.home_team_api_id) : undefined;
     const awayId =
       fx.away_team_api_id != null ? apiIdToTeamId.get(fx.away_team_api_id) : undefined;
-    if (!homeId || !awayId) continue;
+    if (!homeId && !awayId) continue;
 
     const outcome = matchOutcome(fx.home_goals, fx.away_goals);
     if (outcome === null) continue;
 
     if (outcome === "draw") {
-      bump(homeId, "group_draws");
-      bump(awayId, "group_draws");
+      if (homeId) bump(homeId, "group_draws");
+      if (awayId) bump(awayId, "group_draws");
     } else if (outcome === "home") {
-      bump(homeId, "group_wins");
-      bump(awayId, "group_losses");
+      if (homeId) bump(homeId, "group_wins");
+      if (awayId) bump(awayId, "group_losses");
     } else {
-      bump(awayId, "group_wins");
-      bump(homeId, "group_losses");
+      if (awayId) bump(awayId, "group_wins");
+      if (homeId) bump(homeId, "group_losses");
     }
   }
 

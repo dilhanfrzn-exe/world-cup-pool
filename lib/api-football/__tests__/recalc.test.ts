@@ -87,11 +87,10 @@ test("group records: win/draw/loss tallied for both teams", () => {
   });
 });
 
-test("group records ignore unfinished games and fixtures with unmapped teams", () => {
+test("group records ignore unfinished games", () => {
   const fixtures = [
     group(ARG, FRA, 2, 1, false), // not finished -> ignored
     group(ARG, FRA, 3, 0), // finished -> ARG win, FRA loss
-    group(ARG, 999, 5, 0), // opponent not in pool -> whole fixture skipped
   ];
   const recs = recalcGroupRecords(fixtures, apiIdToTeamId);
   assert.deepEqual(recs.get("t-arg"), {
@@ -104,6 +103,26 @@ test("group records ignore unfinished games and fixtures with unmapped teams", (
     group_draws: 0,
     group_losses: 1,
   });
+});
+
+test("group records credit pool teams when opponent is not in pool", () => {
+  const fixtures = [
+    group(ARG, 999, 3, 0), // ARG beats unmapped opponent
+    group(999, FRA, 2, 0), // FRA loses to unmapped opponent
+    group(ARG, 999, 1, 1), // ARG draws unmapped opponent
+  ];
+  const recs = recalcGroupRecords(fixtures, apiIdToTeamId);
+  assert.deepEqual(recs.get("t-arg"), {
+    group_wins: 1,
+    group_draws: 1,
+    group_losses: 0,
+  });
+  assert.deepEqual(recs.get("t-fra"), {
+    group_wins: 0,
+    group_draws: 0,
+    group_losses: 1,
+  });
+  assert.equal(recs.has("t-999"), false);
 });
 
 test("running recalc twice is idempotent (no double counting)", () => {
